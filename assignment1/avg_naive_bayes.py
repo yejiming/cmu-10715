@@ -30,8 +30,9 @@ def read_data(path):
 
 class AvgNaiveBayes(object):
 
-    def __init__(self, beta):
+    def __init__(self, beta, eta):
         self.beta = beta
+        self.eta = eta
         self._labels = {}
         self._prior = {}
         self._params = {}
@@ -71,7 +72,7 @@ class AvgNaiveBayes(object):
                 self._log_px.setdefault(col, 0.0)
                 self._log_cond_px.setdefault(col, 0.0)
                 self._log_px[col] += math.log(self._get_pdf(x=x, col=col))
-                self._log_cond_px[col] += self._get_pdf(x=x, y=y, col=col)
+                self._log_cond_px[col] += math.log(max(self._get_pdf(x=x, y=y, col=col), self.eta))
 
     def predict(self, X_test):
         pred = []
@@ -81,8 +82,8 @@ class AvgNaiveBayes(object):
             for y in self._labels:
                 log_posterior_p = math.log(self._get_pdf(y=y))
                 for col, x in enumerate(obs):
-                    _log_px = self._log_px[col] + math.log(self._get_pdf(x=x, col=col) + 1e-10)
-                    _log_cond_px = self._log_cond_px[col] + math.log(self._get_pdf(x=x, y=y, col=col) + 1e-10)
+                    _log_px = self._log_px[col] + math.log(max(self._get_pdf(x=x, col=col), self.eta))
+                    _log_cond_px = self._log_cond_px[col] + math.log(max(self._get_pdf(x=x, y=y, col=col), self.eta))
                     m = max([_log_px, _log_cond_px])
                     log_posterior_p += (m + math.log(math.exp(_log_px - m) + math.exp(_log_cond_px - m) / self.beta))
                 if log_posterior_p > max_p:
@@ -93,11 +94,11 @@ class AvgNaiveBayes(object):
 
 
 if __name__ == "__main__":
-    data = read_data("data/forests.mat")
+    data = read_data("data/iris.mat")
     data["yTrain"] = data["yTrain"].flatten().astype(np.int32)
     data["yTest"] = data["yTest"].flatten().astype(np.int32)
 
-    nb = AvgNaiveBayes(beta=1.03264707119e+100)
+    nb = AvgNaiveBayes(beta=1e20, eta=1e-10)
     nb.fit(data["XTrain"], data["yTrain"])
     pred = nb.predict(data["XTest"])
 
